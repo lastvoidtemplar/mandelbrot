@@ -13,7 +13,7 @@ func TestThreads(t *testing.T) {
 
 func TestMandelbrot(t *testing.T) {
 	workers := NewMandelbrotWorkerRing(4, 4)
-	DistributeTasks(workers, DimensionOption{
+	DistributeEvenlyTasks(workers, DimensionOption{
 		stX:    -2,
 		stY:    -2,
 		endX:   2,
@@ -32,7 +32,7 @@ func runMandelbrot(p int) {
 	height := 8000
 	maxIter := 1000
 	workers := NewMandelbrotWorkerRing(p, 4)
-	DistributeTasks(workers, DimensionOption{
+	tasksWg := DistributeEvenlyTasks(workers, DimensionOption{
 		stX:    -2,
 		stY:    -2,
 		endX:   2,
@@ -45,7 +45,7 @@ func runMandelbrot(p int) {
 	})
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	WorkersRun(workers, img, maxIter)
+	WorkersRun(workers, tasksWg, img, maxIter)
 }
 
 func BenchmarkMandelbrot(b *testing.B) {
