@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"image"
+	"runtime"
 	"testing"
 )
+
+func TestThreads(t *testing.T) {
+	t.Log(runtime.NumCPU())
+}
 
 func TestMandelbrot(t *testing.T) {
 	workers := NewMandelbrotWorkerRing(4, 4)
@@ -25,7 +30,7 @@ func TestMandelbrot(t *testing.T) {
 func runMandelbrot(p int) {
 	width := 8000
 	height := 8000
-	maxIter := 2000
+	maxIter := 1000
 	workers := NewMandelbrotWorkerRing(p, 4)
 	DistributeTasks(workers, DimensionOption{
 		stX:    -2,
@@ -44,6 +49,7 @@ func runMandelbrot(p int) {
 }
 
 func BenchmarkMandelbrot(b *testing.B) {
+	b.SetParallelism(16)
 	ps := []int{1, 2, 3, 4, 6, 8, 10, 12}
 
 	for _, p := range ps {

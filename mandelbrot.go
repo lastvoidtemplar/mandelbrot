@@ -2,8 +2,9 @@ package main
 
 import (
 	"image"
-	"math/cmplx"
+	"log"
 	"sync"
+	"time"
 )
 
 type MandelbrotTask struct {
@@ -90,6 +91,8 @@ func WorkersRun(workers []MandelbrotWorker, img *image.RGBA, maxIter int) {
 }
 
 func (worker *MandelbrotWorker) Run(maxIter int, wg *sync.WaitGroup) {
+	st := time.Now()
+
 	defer wg.Done()
 
 	stX := worker.dimension.stX
@@ -100,6 +103,7 @@ func (worker *MandelbrotWorker) Run(maxIter int, wg *sync.WaitGroup) {
 	for {
 		task, ok := worker.queue.Pop()
 		if !ok {
+			log.Println(time.Since(st))
 			return
 		}
 
@@ -108,17 +112,16 @@ func (worker *MandelbrotWorker) Run(maxIter int, wg *sync.WaitGroup) {
 			for yInd := task.stYInd; yInd < task.endYInd; yInd++ {
 				y := stY + float64(yInd)*stepY
 
-				c := complex(x, y)
-				z := complex(0, 0)
+				real := 0.0
+				imaginary := 0.0
 				i := 0
 				for ; i < maxIter; i++ {
-					z = z*z + c
-					mag := cmplx.Abs(z)
-					if mag > 2 {
+					real, imaginary = real*real-imaginary*imaginary+x, 2*real*imaginary+y
+					if real*real+imaginary*imaginary > 4 {
 						break
 					}
 				}
-				worker.img.Set(xInd, yInd, getColor(i, z, maxIter))
+				worker.img.SetRGBA(xInd, yInd, GetColorByHue(i, maxIter))
 			}
 		}
 	}

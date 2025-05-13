@@ -4,13 +4,17 @@ import (
 	"image"
 	"image/jpeg"
 	"os"
+	"runtime/pprof"
 )
 
 func main() {
+	f, _ := os.Create("cpu.pprof")
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 	width := 8000
 	height := 8000
 	maxIter := 2000
-	workers := NewMandelbrotWorkerRing(1, 2000)
+	workers := NewMandelbrotWorkerRing(16, 2000)
 	DistributeTasks(workers, DimensionOption{
 		stX:    -2,
 		stY:    -2,
@@ -19,7 +23,7 @@ func main() {
 		width:  width,
 		height: height,
 	}, GranularityOption{
-		width:  100,
+		width:  8000,
 		height: 1,
 	})
 
