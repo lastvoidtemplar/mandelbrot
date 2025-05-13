@@ -5,17 +5,18 @@ import (
 	"image/jpeg"
 	"log"
 	"os"
+	"runtime/pprof"
 	"time"
 )
 
 func main() {
-	// f, _ := os.Create("cpu.pprof")
-	// pprof.StartCPUProfile(f)
-	// defer pprof.StopCPUProfile()
+	f, _ := os.Create("cpu.pprof")
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 	st := time.Now()
 	width := 8000
 	height := 8000
-	maxIter := 2000
+	maxIter := 500
 	workers := NewMandelbrotWorkerRing(12, 2000)
 	tasksWg := DistributeEvenlyTasks(workers, DimensionOption{
 		stX:    -2,

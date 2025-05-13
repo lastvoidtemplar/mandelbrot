@@ -58,12 +58,12 @@ func TestAsyncQueue2(t *testing.T) {
 	q.Push(5)
 
 	for i := range 3 {
-		val, ok := q.Steal()
+		val, ok := q.Steal(1)
 		if !ok {
 			t.Errorf("Expected %t, but got %t\n", true, ok)
 		}
 
-		if val != 5-i {
+		if val[0] != 5-i {
 			t.Errorf("Expected %d, but got %d\n", 5-i, val)
 		}
 	}
@@ -75,23 +75,23 @@ func TestAsyncQueue2(t *testing.T) {
 	q.Push(10)
 
 	for i := range 5 {
-		val, ok := q.Steal()
+		val, ok := q.Steal(1)
 		if !ok {
 			t.Errorf("Expected %t, but got %t\n", true, ok)
 		}
 
-		if val != 10-i {
+		if val[0] != 10-i {
 			t.Errorf("Expected %d, but got %d\n", 10-i, val)
 		}
 	}
 
 	for i := range 2 {
-		val, ok := q.Steal()
+		val, ok := q.Steal(1)
 		if !ok {
 			t.Errorf("Expected %t, but got %t\n", true, ok)
 		}
 
-		if val != 2-i {
+		if val[0] != 2-i {
 			t.Errorf("Expected %d, but got %d\n", 2-i, val)
 		}
 	}
