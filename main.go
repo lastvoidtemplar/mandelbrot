@@ -16,8 +16,8 @@ func main() {
 	st := time.Now()
 	width := 8000
 	height := 8000
-	maxIter := 500
-	workers := NewMandelbrotWorkerRing(12, 2000)
+	maxIter := 2000
+	workers := NewMandelbrotWorkerHyperCube(15)
 	tasksWg := DistributeEvenlyTasks(workers, DimensionOption{
 		stX:    -2,
 		stY:    -2,
@@ -26,8 +26,8 @@ func main() {
 		width:  width,
 		height: height,
 	}, GranularityOption{
-		width:  400,
-		height: 400,
+		width:  200,
+		height: 200,
 	})
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))

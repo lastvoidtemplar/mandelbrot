@@ -3,10 +3,13 @@ package main
 import (
 	"image"
 	"log"
+	"math/bits"
 	"math/rand"
 	"sync"
 	"time"
 )
+
+const MaxThreadsLog int = 9
 
 type MandelbrotTask struct {
 	stXInd  int
@@ -28,7 +31,7 @@ type MandelbrotWorker struct {
 	img            *image.RGBA
 	dimension      DimensionOption
 	queue          *AsyncQueue[MandelbrotTask]
-	neighbourQueue [2](*AsyncQueue[MandelbrotTask])
+	neighbourQueue [MaxThreadsLog](*AsyncQueue[MandelbrotTask])
 }
 
 func NewMandelbrotWorkerRing(count int, queueCapacity int) []MandelbrotWorker {
@@ -44,6 +47,33 @@ func NewMandelbrotWorkerRing(count int, queueCapacity int) []MandelbrotWorker {
 		next := (i + 1) % len(workers)
 		workers[i].neighbourQueue[0] = workers[perv].queue
 		workers[i].neighbourQueue[1] = workers[next].queue
+	}
+
+	return workers
+}
+
+func NewMandelbrotWorkerHyperCube(count int) []MandelbrotWorker {
+	workers := make([]MandelbrotWorker, 0, count)
+	for range count {
+		workers = append(workers, MandelbrotWorker{
+			queue: NewAsyncQueue[MandelbrotTask](64),
+		})
+	}
+
+	k := bits.Len(uint(count - 1))
+
+	for i := range count {
+		for b := 0; b < MaxThreadsLog; b++ {
+			if b < k {
+				neighbor := i ^ (1 << b)
+				if neighbor >= count {
+					neighbor = rand.Intn(count)
+				}
+				workers[i].neighbourQueue[b] = workers[neighbor].queue
+			} else {
+				workers[i].neighbourQueue[b] = NewAsyncQueue[MandelbrotTask](64)
+			}
+		}
 	}
 
 	return workers
@@ -145,6 +175,7 @@ const stealBatchSize = 10
 
 func (worker *MandelbrotWorker) Run(maxIter int, taskWg *sync.WaitGroup, doneCh <-chan struct{}) {
 	st := time.Now()
+	end := st
 
 	stX := worker.dimension.stX
 	stY := worker.dimension.stY
@@ -156,27 +187,41 @@ func (worker *MandelbrotWorker) Run(maxIter int, taskWg *sync.WaitGroup, doneCh 
 		if ok {
 			worker.process(task, stX, stY, stepX, stepY, maxIter)
 			taskWg.Done()
+			end = time.Now()
 			continue
 		}
 
 		select {
 		case <-worker.neighbourQueue[0].CanSteal():
-			l := worker.neighbourQueue[0].Len()
-			tasks, ok := worker.neighbourQueue[0].Steal(max(stealBatchSize, l/3))
-			if ok {
-				worker.queue.Push(tasks...)
-			}
+			worker.steal(0)
 		case <-worker.neighbourQueue[1].CanSteal():
-			l := worker.neighbourQueue[1].Len()
-			tasks, ok := worker.neighbourQueue[1].Steal(max(stealBatchSize, l/3))
-			if ok {
-				worker.queue.Push(tasks...)
-			}
-
+			worker.steal(1)
+		case <-worker.neighbourQueue[2].CanSteal():
+			worker.steal(2)
+		case <-worker.neighbourQueue[3].CanSteal():
+			worker.steal(3)
+		case <-worker.neighbourQueue[4].CanSteal():
+			worker.steal(4)
+		case <-worker.neighbourQueue[5].CanSteal():
+			worker.steal(5)
+		case <-worker.neighbourQueue[6].CanSteal():
+			worker.steal(6)
+		case <-worker.neighbourQueue[7].CanSteal():
+			worker.steal(7)
+		case <-worker.neighbourQueue[8].CanSteal():
+			worker.steal(8)
 		case <-doneCh:
-			log.Println(time.Since(st))
+			log.Println(end.Sub(st))
 		}
 
+	}
+}
+
+func (worker *MandelbrotWorker) steal(neighbor int) {
+	l := worker.neighbourQueue[neighbor].Len()
+	tasks, ok := worker.neighbourQueue[neighbor].Steal(max(stealBatchSize, l/3))
+	if ok {
+		worker.queue.Push(tasks...)
 	}
 }
 

@@ -18,6 +18,7 @@ const StealingTreshold = 5
 func NewAsyncQueue[T any](capacity int) *AsyncQueue[T] {
 	return &AsyncQueue[T]{
 		arr:        make([]T, capacity),
+		len:        0,
 		mutex:      sync.RWMutex{},
 		notifyChan: make(chan struct{}, 1),
 	}
