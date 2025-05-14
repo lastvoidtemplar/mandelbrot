@@ -34,11 +34,11 @@ type MandelbrotWorker struct {
 	neighbourQueue [MaxThreadsLog](*AsyncQueue[MandelbrotTask])
 }
 
-func NewMandelbrotWorkerRing(count int, queueCapacity int) []MandelbrotWorker {
+func NewMandelbrotWorkerRing(count int) []MandelbrotWorker {
 	workers := make([]MandelbrotWorker, 0, count)
 	for range count {
 		workers = append(workers, MandelbrotWorker{
-			queue: NewAsyncQueue[MandelbrotTask](queueCapacity),
+			queue: NewAsyncQueue[MandelbrotTask](64),
 		})
 	}
 
@@ -47,6 +47,9 @@ func NewMandelbrotWorkerRing(count int, queueCapacity int) []MandelbrotWorker {
 		next := (i + 1) % len(workers)
 		workers[i].neighbourQueue[0] = workers[perv].queue
 		workers[i].neighbourQueue[1] = workers[next].queue
+		for j := 2; j < MaxThreadsLog; j++ {
+			workers[i].neighbourQueue[j] = NewAsyncQueue[MandelbrotTask](64)
+		}
 	}
 
 	return workers
@@ -114,7 +117,6 @@ func DistributeTasksByDumping(workers []MandelbrotWorker, dimension DimensionOpt
 	for i := 0; i < p; i++ {
 		workers[i].dimension = dimension
 	}
-
 	tasksWg := &sync.WaitGroup{}
 	for xInd := 0; xInd < dimension.width; xInd += granularity.width {
 		for yInd := 0; yInd < dimension.height; yInd += granularity.height {
@@ -152,7 +154,7 @@ func DistributeRandomlyTasks(workers []MandelbrotWorker, dimension DimensionOpti
 	return tasksWg
 }
 
-func WorkersRun(workers []MandelbrotWorker, tasksWg *sync.WaitGroup, img *image.RGBA, maxIter int) {
+func WorkersRun(workers []MandelbrotWorker, tasksWg *sync.WaitGroup, img *image.RGBA, maxIter int, stealing bool) {
 	p := len(workers)
 	for i := 0; i < p; i++ {
 		workers[i].img = img
@@ -161,7 +163,7 @@ func WorkersRun(workers []MandelbrotWorker, tasksWg *sync.WaitGroup, img *image.
 	doneCh := make(chan struct{}, p)
 
 	for i := 0; i < p; i++ {
-		go workers[i].Run(maxIter, tasksWg, doneCh)
+		go workers[i].Run(maxIter, tasksWg, doneCh, stealing)
 	}
 
 	tasksWg.Wait()
@@ -173,46 +175,52 @@ func WorkersRun(workers []MandelbrotWorker, tasksWg *sync.WaitGroup, img *image.
 
 const stealBatchSize = 10
 
-func (worker *MandelbrotWorker) Run(maxIter int, taskWg *sync.WaitGroup, doneCh <-chan struct{}) {
-	st := time.Now()
-	end := st
+func (worker *MandelbrotWorker) Run(maxIter int, taskWg *sync.WaitGroup, doneCh <-chan struct{}, stealing bool) {
+	t, _ := time.ParseDuration("0s")
 
 	stX := worker.dimension.stX
 	stY := worker.dimension.stY
 	stepX := (worker.dimension.endX - worker.dimension.stX) / float64(worker.dimension.width)
 	stepY := (worker.dimension.endY - worker.dimension.stY) / float64(worker.dimension.height)
-
 	for {
 		task, ok := worker.queue.Pop()
 		if ok {
+			st := time.Now()
 			worker.process(task, stX, stY, stepX, stepY, maxIter)
 			taskWg.Done()
-			end = time.Now()
+			d := time.Since(st)
+			t += d
 			continue
 		}
 
-		select {
-		case <-worker.neighbourQueue[0].CanSteal():
-			worker.steal(0)
-		case <-worker.neighbourQueue[1].CanSteal():
-			worker.steal(1)
-		case <-worker.neighbourQueue[2].CanSteal():
-			worker.steal(2)
-		case <-worker.neighbourQueue[3].CanSteal():
-			worker.steal(3)
-		case <-worker.neighbourQueue[4].CanSteal():
-			worker.steal(4)
-		case <-worker.neighbourQueue[5].CanSteal():
-			worker.steal(5)
-		case <-worker.neighbourQueue[6].CanSteal():
-			worker.steal(6)
-		case <-worker.neighbourQueue[7].CanSteal():
-			worker.steal(7)
-		case <-worker.neighbourQueue[8].CanSteal():
-			worker.steal(8)
-		case <-doneCh:
-			log.Println(end.Sub(st))
+		if stealing {
+			select {
+			case <-worker.neighbourQueue[0].CanSteal():
+				worker.steal(0)
+			case <-worker.neighbourQueue[1].CanSteal():
+				worker.steal(1)
+			case <-worker.neighbourQueue[2].CanSteal():
+				worker.steal(2)
+			case <-worker.neighbourQueue[3].CanSteal():
+				worker.steal(3)
+			case <-worker.neighbourQueue[4].CanSteal():
+				worker.steal(4)
+			case <-worker.neighbourQueue[5].CanSteal():
+				worker.steal(5)
+			case <-worker.neighbourQueue[6].CanSteal():
+				worker.steal(6)
+			case <-worker.neighbourQueue[7].CanSteal():
+				worker.steal(7)
+			case <-worker.neighbourQueue[8].CanSteal():
+				worker.steal(8)
+			case <-doneCh:
+				log.Println(t)
+			}
+			continue
 		}
+
+		<-doneCh
+		log.Println(t)
 
 	}
 }

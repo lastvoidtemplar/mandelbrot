@@ -17,7 +17,7 @@ const StealingTreshold = 5
 
 func NewAsyncQueue[T any](capacity int) *AsyncQueue[T] {
 	return &AsyncQueue[T]{
-		arr:        make([]T, capacity),
+		arr:        make([]T, 1),
 		len:        0,
 		mutex:      sync.RWMutex{},
 		notifyChan: make(chan struct{}, 1),
@@ -36,7 +36,7 @@ func (q *AsyncQueue[T]) Push(values ...T) {
 	defer q.mutex.Unlock()
 
 	if cap(q.arr) <= q.len+len(values) {
-		newArr := make([]T, 2*cap(q.arr))
+		newArr := make([]T, 2*(q.len+len(values)))
 		n := copy(newArr, q.arr[q.startPos:])
 		copy(newArr[n:], q.arr[:q.startPos])
 		q.arr = newArr
@@ -76,7 +76,7 @@ func (q *AsyncQueue[T]) Steal(batch int) ([]T, bool) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	if q.len < StealingTreshold {
+	if q.len <= StealingTreshold {
 		return nil, false
 	}
 

@@ -12,7 +12,7 @@ func TestThreads(t *testing.T) {
 }
 
 func TestMandelbrot(t *testing.T) {
-	workers := NewMandelbrotWorkerRing(4, 4)
+	workers := NewMandelbrotWorkerRing(4)
 	DistributeEvenlyTasks(workers, DimensionOption{
 		stX:    -2,
 		stY:    -2,
@@ -31,7 +31,7 @@ func runMandelbrot(p int) {
 	width := 8000
 	height := 8000
 	maxIter := 1000
-	workers := NewMandelbrotWorkerRing(p, 4)
+	workers := NewMandelbrotWorkerRing(p)
 	tasksWg := DistributeEvenlyTasks(workers, DimensionOption{
 		stX:    -2,
 		stY:    -2,

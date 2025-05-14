@@ -61,6 +61,7 @@ func TestAsyncQueue2(t *testing.T) {
 		val, ok := q.Steal(1)
 		if !ok {
 			t.Errorf("Expected %t, but got %t\n", true, ok)
+			continue
 		}
 
 		if val[0] != 5-i {
@@ -78,6 +79,7 @@ func TestAsyncQueue2(t *testing.T) {
 		val, ok := q.Steal(1)
 		if !ok {
 			t.Errorf("Expected %t, but got %t\n", true, ok)
+			continue
 		}
 
 		if val[0] != 10-i {
@@ -89,6 +91,7 @@ func TestAsyncQueue2(t *testing.T) {
 		val, ok := q.Steal(1)
 		if !ok {
 			t.Errorf("Expected %t, but got %t\n", true, ok)
+			continue
 		}
 
 		if val[0] != 2-i {
