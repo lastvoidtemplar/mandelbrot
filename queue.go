@@ -13,7 +13,7 @@ type AsyncQueue[T any] struct {
 	notifyChan chan struct{}
 }
 
-const StealingTreshold = 5
+const StealingTreshold = 3
 
 func NewAsyncQueue[T any](capacity int) *AsyncQueue[T] {
 	return &AsyncQueue[T]{
